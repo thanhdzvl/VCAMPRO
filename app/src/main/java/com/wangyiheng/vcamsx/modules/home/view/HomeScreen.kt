@@ -33,119 +33,101 @@ fun HomeScreen() {
         homeController.init()
     }
 
-    val selectVideoLauncher = rememberLauncherForActivityResult(
+    val selectMediaLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            homeController.copyVideoToAppDir(context,it)
+            val mimeType = context.contentResolver.getType(it).orEmpty()
+            val isSupported = mimeType.startsWith("video/") || mimeType.startsWith("image/")
+            if (isSupported) {
+                homeController.copyMediaToAppDir(context, it)
+                Toast.makeText(context, "Đã chọn tệp phương tiện", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Chỉ hỗ trợ video hoặc ảnh", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted: Boolean ->
-            if (isGranted) {
-                selectVideoLauncher.launch("video/*")
+            if (isGranted || Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                selectMediaLauncher.launch("*/*")
             } else {
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    // 在 Android 9 (Pie) 及以下版本，请求 READ_EXTERNAL_STORAGE 权限
-                    Toast.makeText(context, "请打开设置允许读取文件夹权限", Toast.LENGTH_SHORT).show()
-                } else {
-                    // 在 Android 10 及以上版本，直接访问视频文件，无需请求权限
-                    selectVideoLauncher.launch("video/*")
-                }
+                Toast.makeText(context, "Vui lòng cấp quyền đọc bộ nhớ trong phần Cài đặt", Toast.LENGTH_SHORT).show()
             }
         }
     )
 
     Card(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
-        val buttonModifier = Modifier
-            .fillMaxWidth()
+        val buttonModifier = Modifier.fillMaxWidth()
 
         Column(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TextField(
                 value = homeController.liveURL.value,
                 onValueChange = { homeController.liveURL.value = it },
-                label = { Text("RTMP链接：") }
+                label = { Text("Liên kết RTMP:") }
             )
 
-            Button(
-                modifier = buttonModifier,
-                onClick = {
-                    homeController.saveState()
-                }
-            ) {
-                Text("保存RTMP链接")
+            Button(modifier = buttonModifier, onClick = { homeController.saveState() }) {
+                Text("Lưu liên kết RTMP")
             }
             Button(
                 modifier = buttonModifier,
-                onClick = {
-                    requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-
-                }
+                onClick = { requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE) }
             ) {
-                Text("选择视频")
+                Text("Chọn video / ảnh")
             }
 
-            Button(
-                modifier = buttonModifier,
-                onClick = {
-                    homeController.isVideoDisplay.value = true
-                }
-            ) {
-                Text("查看视频")
+            Button(modifier = buttonModifier, onClick = { homeController.isVideoDisplay.value = true }) {
+                Text("Xem nguồn phát")
             }
 
-            Button(
-                modifier = buttonModifier,
-                onClick = {
-                    homeController.isLiveStreamingDisplay.value = true
-                }
-            ) {
-                Text("查看直播推流")
+            Button(modifier = buttonModifier, onClick = { homeController.isLiveStreamingDisplay.value = true }) {
+                Text("Xem luồng trực tiếp")
             }
 
             SettingRow(
-                label = "视频开关",
+                label = "Bật nguồn phát",
                 checkedState = homeController.isVideoEnabled,
                 onCheckedChange = { homeController.saveState() },
                 context = context
             )
 
             SettingRow(
-                label = "直播推流开关",
+                label = "Bật RTMP trực tiếp",
                 checkedState = homeController.isLiveStreamingEnabled,
                 onCheckedChange = { homeController.saveState() },
                 context = context
             )
 
             SettingRow(
-                label = "音量开关",
+                label = "Bật âm thanh",
                 checkedState = homeController.isVolumeEnabled,
                 onCheckedChange = { homeController.saveState() },
                 context = context
             )
 
             SettingRow(
-                label = if (homeController.codecType.value) "硬解码" else "软解码",
+                label = if (homeController.codecType.value) "Giải mã cứng" else "Giải mã mềm",
                 checkedState = homeController.codecType,
                 onCheckedChange = {
                     if(homeController.isH264HardwareDecoderSupport()){
                         homeController.saveState()
                     }else{
                         homeController.codecType.value = false
-                        Toast.makeText(context, "不支持硬解码", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Thiết bị không hỗ trợ giải mã cứng", Toast.LENGTH_SHORT).show()
                     }},
                 context = context
             )
         }
-        val annotatedString = AnnotatedString.Builder("本软件免费，点击前往软件下载页").apply {
-            // 添加点击事件的范围
+        val releaseText = "Ứng dụng miễn phí, bấm để đến trang tải xuống"
+        val annotatedString = AnnotatedString.Builder(releaseText).apply {
             addStringAnnotation(
                 tag = "URL",
                 annotation = "https://github.com/iiheng/VCAMSX/releases",
                 start = 0,
-                end = 12
+                end = releaseText.length
             )
         }.toAnnotatedString()
 
@@ -155,7 +137,6 @@ fun HomeScreen() {
         ) { offset ->
             annotatedString.getStringAnnotations("URL", offset, offset)
                 .firstOrNull()?.let { annotation ->
-                    // 在这里处理点击事件，比如打开一个浏览器
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
                     context.startActivity(intent)
                 }

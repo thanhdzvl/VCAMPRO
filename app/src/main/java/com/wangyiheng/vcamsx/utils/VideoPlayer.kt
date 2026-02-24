@@ -53,7 +53,7 @@ object VideoPlayer {
         mediaPlayer.apply {
             // 公共的错误监听器
             setOnErrorListener { _, what, extra ->
-                Toast.makeText(context, "播放错误: $what", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Lỗi phát: $what", Toast.LENGTH_SHORT).show()
                 true
             }
 
@@ -99,7 +99,7 @@ object VideoPlayer {
             // 准备好后的操作
             setOnPreparedListener {
                 original_preview_Surface?.let { setSurface(it) }
-                Toast.makeText(context, "直播接收成功", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Đã nhận luồng trực tiếp", Toast.LENGTH_SHORT).show()
                 start()
             }
         }

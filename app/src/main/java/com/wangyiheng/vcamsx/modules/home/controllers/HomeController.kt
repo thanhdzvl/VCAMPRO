@@ -65,13 +65,15 @@ class HomeController: ViewModel(),KoinComponent {
                     apiService.uploadIp(UploadIpRequest(ipAddress))
                 }
             } catch (e: Exception) {
-                Log.d("错误", "${e.message}")
+                Log.d("Lỗi", "${e.message}")
             }
         }
     }
-    fun copyVideoToAppDir(context: Context,videoUri: Uri) {
+    fun copyMediaToAppDir(context: Context, mediaUri: Uri) {
+        val mimeType = context.contentResolver.getType(mediaUri).orEmpty()
+        val mediaType = if (mimeType.startsWith("image/")) "image" else "video"
         infoManager.removeVideoInfo()
-        infoManager.saveVideoInfo(VideoInfo(videoUrl=videoUri.toString()))
+        infoManager.saveVideoInfo(VideoInfo(videoUrl = mediaUri.toString(), videoType = mediaType))
     }
     fun saveState() {
         infoManager.removeVideoStatus()
@@ -149,7 +151,7 @@ class HomeController: ViewModel(),KoinComponent {
                 // 错误监听器
                 setOnErrorListener { _, what, extra ->
                     Log.e("IjkMediaPlayer", "Error occurred. What: $what, Extra: $extra")
-                    Toast.makeText(context, "直播接收失败$what", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Nhận luồng trực tiếp thất bại: $what", Toast.LENGTH_SHORT).show()
                     true
                 }
 
@@ -170,7 +172,7 @@ class HomeController: ViewModel(),KoinComponent {
 
                 // 当播放器准备好后，开始播放
                 setOnPreparedListener {
-                    Toast.makeText(context, "直播接收成功，可以进行投屏", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Đã nhận luồng trực tiếp, có thể bắt đầu phát", Toast.LENGTH_SHORT).show()
                     start()
                 }
             } catch (e: Exception) {
