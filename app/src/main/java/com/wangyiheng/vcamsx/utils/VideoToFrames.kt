@@ -84,7 +84,11 @@ class VideoToFrames : Runnable {
             }
             val trackIndex = selectTrack(extractor)
             if (trackIndex < 0) {
-                XposedBridge.log("&#8203;``【oaicite:5】``&#8203;&#8203;``【oaicite:4】``&#8203;No video track found in $videoFilePath")
+                if (handleImageSource(videoPath)) {
+                    return
+                }
+                XposedBridge.log("No video track found in $videoFilePath")
+                return
             }
             extractor.selectTrack(trackIndex)
             val mediaFormat = extractor.getTrackFormat(trackIndex)
@@ -119,6 +123,75 @@ class VideoToFrames : Runnable {
             }
         }
     }
+    private fun handleImageSource(source: Any): Boolean {
+        return try {
+            val bitmap = when (source) {
+                is Uri -> context?.contentResolver?.openInputStream(source)?.use { BitmapFactory.decodeStream(it) }
+                is String -> BitmapFactory.decodeFile(source)
+                else -> null
+            } ?: return false
+
+            MainHook.data_buffer = bitmapToNv21(bitmap)
+            renderBitmapLoop(bitmap)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Cannot decode image source", e)
+            false
+        }
+    }
+
+    private fun renderBitmapLoop(bitmap: Bitmap) {
+        if (play_surf == null) {
+            while (!stopDecode) {
+                Thread.sleep(33)
+            }
+            return
+        }
+
+        while (!stopDecode) {
+            try {
+                val canvas = play_surf?.lockCanvas(null) ?: break
+                val dstRect = Rect(0, 0, canvas.width, canvas.height)
+                canvas.drawBitmap(bitmap, null, dstRect, null)
+                play_surf?.unlockCanvasAndPost(canvas)
+                Thread.sleep(33)
+            } catch (_: Exception) {
+                break
+            }
+        }
+    }
+
+    private fun bitmapToNv21(bitmap: Bitmap): ByteArray {
+        val width = bitmap.width
+        val height = bitmap.height
+        val argb = IntArray(width * height)
+        bitmap.getPixels(argb, 0, width, 0, 0, width, height)
+
+        val yuv = ByteArray(width * height * 3 / 2)
+        var yIndex = 0
+        var uvIndex = width * height
+
+        for (j in 0 until height) {
+            for (i in 0 until width) {
+                val rgb = argb[j * width + i]
+                val r = rgb shr 16 and 0xff
+                val g = rgb shr 8 and 0xff
+                val b = rgb and 0xff
+
+                val y = ((66 * r + 129 * g + 25 * b + 128) shr 8) + 16
+                val u = ((-38 * r - 74 * g + 112 * b + 128) shr 8) + 128
+                val v = ((112 * r - 94 * g - 18 * b + 128) shr 8) + 128
+
+                yuv[yIndex++] = y.coerceIn(0, 255).toByte()
+                if (j % 2 == 0 && i % 2 == 0 && uvIndex + 1 < yuv.size) {
+                    yuv[uvIndex++] = v.coerceIn(0, 255).toByte()
+                    yuv[uvIndex++] = u.coerceIn(0, 255).toByte()
+                }
+            }
+        }
+        return yuv
+    }
+
     private fun selectTrack(extractor: MediaExtractor): Int {
         val numTracks = extractor.trackCount
         for (i in 0 until numTracks) {

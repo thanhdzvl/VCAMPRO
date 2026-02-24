@@ -223,9 +223,9 @@ class MainHook : IXposedHookLoadPackage {
                              hw_decode_obj!!.stopDecode()
                         }
                         Toast.makeText(context, """
-                                视频需要分辨率与摄像头完全相同
-                                宽：${mwidth}
-                                高：${mhight}
+                                Video cần có độ phân giải trùng với camera
+                                Rộng: ${mwidth}
+                                Cao: ${mhight}
                                 """.trimIndent(), Toast.LENGTH_SHORT).show()
                         hw_decode_obj = VideoToFrames()
                         hw_decode_obj!!.setSaveFrames(OutputImageFormat.NV21)
