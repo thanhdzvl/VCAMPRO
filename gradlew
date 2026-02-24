@@ -82,6 +82,18 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+# Prefer Java 17 when present (AGP 8.1.x is not compatible with Java 25 runtime in some environments).
+if [ -z "$JAVA_HOME" ] ; then
+    for CANDIDATE in         "$HOME/.local/share/mise/installs/java/17.0.2"         "$HOME/.local/share/mise/installs/java/17.0"         "$HOME/.local/share/mise/installs/java/17"         "/usr/lib/jvm/java-17-openjdk-amd64"         "/usr/lib/jvm/temurin-17-jdk-amd64"
+    do
+        if [ -x "$CANDIDATE/bin/java" ] ; then
+            JAVA_HOME="$CANDIDATE"
+            export JAVA_HOME
+            break
+        fi
+    done
+fi
+
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
